@@ -404,14 +404,14 @@ kubectl rollout undo deployments/lab2backend
 
 ## 2.3 - Working with Namespaces
 
-22. Create two new namespaces: `development` and `production`. Feel free to abbreviate to `dev` and `prod` if you wish.
+22. Create two new namespaces: `blue` and `green`. 
 
 <details><summary>show command</summary>
 <p>
 
 ```bash
-kubectl create namespace development
-kubectl create ns production
+kubectl create namespace blue
+kubectl create ns green
 ```
 
 </p>
@@ -469,8 +469,8 @@ spec:
 <p>
 
 ```bash
-kubectl apply -f lab2frontend.yaml --namespace development
-kubectl apply -f lab2frontend.yaml -n production
+kubectl apply -f lab2frontend.yaml --namespace blue
+kubectl apply -f lab2frontend.yaml -n green
 ```
 
 </p>
@@ -483,43 +483,28 @@ kubectl apply -f lab2frontend.yaml -n production
 <p>
 
 ```bash
-kubectl expose deployment lab2frontend --port 8080 --type NodePort --namespace production 
-kubectl expose deployment lab2frontend --port 8080 --type NodePort -n development
+kubectl expose deployment lab2frontend --port 8080 --type NodePort --namespace blue 
+kubectl expose deployment lab2frontend --port 8080 --type NodePort -n green
 ```
 
 </p>
 </details>
 <br/>
 
-27. Obtain the nodeport of both services and then browse to them.
+27. Obtain the nodeport of both services and then cURL them.
 
 <details><summary>show command</summary>
 <p>
 
 ```bash
-kubectl get service --all-namespaces
+kubectl get service lab2frontend -n green && kubectl get svc lab2frontend -n blue
+kubectl curl qakf-kind-control-plane:\<green NodePort\>
+kubectl curl qakf-kind-control-plane:\<blue NodePort\>
 ```
 
 </p>
 </details>
 <br/>
-
-In order to browse to them, you'll need your controller's IP address followed by the `:3xxxx` of your service's nodeport (at the far right of the output).
-
-If you're using our Goto My PC environment, that will be:
-
-```http://k8s-controller-0:3xxxx```
-
-If you're using a cloud environment, use the following command to obtain your Public IP address:
-
-```bash
-curl ifconfig.io
-```
-
-And browse to:
-
-```http://output-from-curl-command:3xxxx```
-
 
 <details><summary>Stretch goals - optional exercises</summary>
 <p>
@@ -539,10 +524,10 @@ And browse to:
 
 ```bash
 kubectl delete deployment lab2backend
-kubectl delete deploy lab2frontend -n production
-kubectl delete deploy lab2frontend -n development
-kubectl delete service lab2frontend -n production
-kubectl delete service lab2frontend -n development
+kubectl delete deploy lab2frontend -n blue
+kubectl delete deploy lab2frontend -n green
+kubectl delete service lab2frontend -n blue
+kubectl delete service lab2frontend -n green
 ```
 
 </p>

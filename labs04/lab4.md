@@ -1,14 +1,14 @@
 # Lab 4 - Networking
 ## 4.1 Explore CoreDNS
 ![Lab 4.1 final result](../diagrams/lab_4_coredns.png)
-1. Create a `public.ecr.aws/qa-wfl/qa-wfl/qakf/sbe` deployment in each of the `dev` and `prod` namespaces, using the `:v2` image in `dev` and the `:v1` image in `production`.
+1. Create a `public.ecr.aws/qa-wfl/qa-wfl/qakf/sbe` deployment in each of the `green` and `blue` namespaces, using the `:v2` image in `green` and the `:v1` image in `blue`.
 
 <details><summary>show commands</summary>
 <p>
 
 ```bash
-kubectl create deploy lab4backend --image=public.ecr.aws/qa-wfl/qa-wfl/qakf/sbe:v1 -n production 
-kubectl create deploy lab4backend --image=public.ecr.aws/qa-wfl/qa-wfl/qakf/sbe:v2 -n development
+kubectl create deploy lab4backend --image=public.ecr.aws/qa-wfl/qa-wfl/qakf/sbe:v1 --replicas=3 -n blue 
+kubectl create deploy lab4backend --image=public.ecr.aws/qa-wfl/qa-wfl/qakf/sbe:v2 --replicas=3 -n green
 ```
 
 </p>
@@ -21,22 +21,22 @@ kubectl create deploy lab4backend --image=public.ecr.aws/qa-wfl/qa-wfl/qakf/sbe:
 <p>
 
 ```bash
-kubectl expose deployment lab4backend --port 80 --target-port 8080 --name backend --namespace production 
-kubectl expose deployment lab4backend --port 80 --target-port 8080 --name backend -n development
+kubectl expose deployment lab4backend --port 80 --target-port 8080 --name backend --namespace blue
+kubectl expose deployment lab4backend --port 80 --target-port 8080 --name backend -n green
 ```
 
 </p>
 </details>
 <br/>
 
-3. We're going to use the `busybox` image to interact with DNS using nslookups. Create a pod named `nettools` in both the `dev` and `prod` namespaces. Use the `busybox` image. You'll need it to run a `command` of `sleep infinity` or it will immediately transition to a `completed` state.
+3. We're going to use the `busybox` image to interact with DNS using nslookups. Create a pod named `nettools` in both the `green` and `blue` namespaces. Use the `busybox` image. You'll need it to run a `command` of `sleep infinity` or it will immediately transition to a `completed` state.
 
 <details><summary>show commands</summary>
 <p>
 
 ```bash
-kubectl run nettools --image=busybox -n production --command sleep infinity
-kubectl run nettools --image=busybox -n development --command sleep infinity
+kubectl run nettools --image=busybox -n blue --command sleep infinity
+kubectl run nettools --image=busybox -n green --command sleep infinity
 ```
 
 </p>
@@ -49,8 +49,8 @@ kubectl run nettools --image=busybox -n development --command sleep infinity
 <p>
 
 ```bash
-kubectl exec -it nettools -n production -- nslookup backend
-kubectl exec -it nettools -n development -- nslookup backend
+kubectl exec -it nettools -n blue -- nslookup backend
+kubectl exec -it nettools -n green -- nslookup backend
 ```
 
 </p>
@@ -66,7 +66,7 @@ Address:        10.96.0.10:53
 
 ** server can't find backend.cluster.local: NXDOMAIN
 
-Name:   backend.development.svc.cluster.local
+Name:   backend.green.svc.cluster.local
 Address: 10.107.29.209
 
 ** server can't find backend.svc.cluster.local: NXDOMAIN
@@ -80,7 +80,7 @@ command terminated with exit code 1
 ```
 <br/>
 
-Note that CoreDNS tried a lot of variations of the name `backend` but one of the first was for `backend.development.svc.clsuter.local` in this case. When run against the prod namespace, it'll look there. This is to illustrate that CoreDNS "knows" which namespace a pod is running in and returns the appropriate lookup.
+Note that CoreDNS tried a lot of variations of the name `backend` but one of the first was for `backend.green.svc.clsuter.local` in this case. When run against the prod namespace, it'll look there. This is to illustrate that CoreDNS "knows" which namespace a pod is running in and returns the appropriate lookup.
 
 5. There's only one placeholder remaining in our simple front end application, for the data from the backing service. Let's finish that off now by `apply`ing (a copy of) the sfe deployment in both namespaces. Again, you might wish to change the `lab3frontend`s to `lab4frontend`s or simply `frontend`s.
 
@@ -88,8 +88,8 @@ Note that CoreDNS tried a lot of variations of the name `backend` but one of the
 <p>
 
 ```bash
-kubectl apply -n production -f lab4frontend.yaml
-kubectl apply -n development -f lab4frontend.yaml
+kubectl apply -n blue -f lab4frontend.yaml
+kubectl apply -n green -f lab4frontend.yaml
 ```
 
 </p>
@@ -118,7 +118,7 @@ frontend-5b6dcf74cb-kvvvn     1/1     Running   0          14m   192.168.29.154 
 
 <br/>
 
-7. **cURL** one of the frontend pods' IP addresses. You should see a v2 message in the dev namespace and a v1 message in production.
+7. **cURL** one of the frontend pods' IP addresses. You should see a v2 message in the green namespace and a v1 message in the blue namespace.
 
 8. **Optional but maybe interesting** `exec` into one of your frontend pods and run `cat /code/app/main.py`. See (around the 25th line) it's just asking for "http://backend"? That's basically what you did earlier with the nslookups. CoreDNS still knows which namespace your workload is running in. And the lack of a port number is why we had to have the service listening on port 80 but forwarding to 8080 (which the app is listening on).
 
@@ -153,17 +153,17 @@ Example output (modified):
 
 ```
 NAMESPACE       NAME                                 TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)                      AGE
-development     backend                              ClusterIP      10.102.60.108    <none>        80/TCP                       14m
-production      backend                              ClusterIP      10.105.142.21    <none>        80/TCP                       19m
+green           backend                              ClusterIP      10.102.60.108    <none>        80/TCP                       14m
+blue            backend                              ClusterIP      10.105.142.21    <none>        80/TCP                       19m
 ingress-nginx   ingress-nginx-controller             LoadBalancer   10.107.57.60     <pending>     80:31886/TCP,443:30765/TCP   72s
 ingress-nginx   ingress-nginx-controller-admission   ClusterIP      10.104.181.164   <none>        443/TCP                      72s
 ```
 
 <br/>
 
-11. Make a note of the nodePort number of the `ingress-nginx-controller` service. Browse to yourIp:nodePort. On the standard build for this course, that's 172.17.1.10 but you could use `hostname -i` to check. You should get a 404 File Not Found error because we haven't configured any backends. That's ingress backends, not our simple backend service, and we're going to sort that out now.
+11. Test the ingress by cURL-ing the controller service's cluster IP: `kubectl curl <controller service IP>`. You should get a 404 File Not Found error because we haven't configured any backends. That's ingress backends, not our simple backend service, and we're going to sort that out now.
 
-## 4.3 Expose the frontends
+## 4.3 Perform a Blue-Green Switchover
 
 12. Expose both of the frontends in the two different namespaces. Expose them both as `clusterIP` services on `port` 80 with a `target-port` of 8080, giving them both a `name` of `frontend`.
 
@@ -171,8 +171,8 @@ ingress-nginx   ingress-nginx-controller-admission   ClusterIP      10.104.181.1
 <p>
 
 ```bash
-kubectl expose deployment lab4frontend --port 80 --target-port 8080 --name frontend --namespace production 
-kubectl expose deployment lab4frontend --port 80 --target-port 8080 --name frontend -n development
+kubectl expose deployment lab4frontend --port 80 --target-port 8080 --name frontend --namespace blue 
+kubectl expose deployment lab4frontend --port 80 --target-port 8080 --name frontend -n green
 ```
 
 </p>
@@ -186,32 +186,43 @@ kubectl expose deployment lab4frontend --port 80 --target-port 8080 --name front
 
 ```bash
 kubectl get svc -A
-curl dev-frontend-service-ip
-curl prod-frontend-service-ip
+curl green-frontend-service-ip
+curl blue-frontend-service-ip
 ```
 
 </p>
 </details>
 <br/>
 
-14. Create an ingress rule for the dev frontend using nip.io in the dev namespace. You might want to call the file `devingress.yaml`.
+14. In the default namespace, create a new _ExternalName_ service called frontend, targeting the frontend service in the **blue** namespace
 
 <details><summary>show command</summary>
 <p>
 
-devingress.yaml:
+```bash
+kubectl create service externalname frontend --external-name frontend.blue.svc.cluster.local
+```
+
+</p>
+</details>
+<br/>
+
+15. Create an ingress rule for the frontend. You might want to call the file `ingress.yaml`.
+
+<details><summary>show command</summary>
+<p>
+
+ingress.yaml:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: dev-ingress
-  namespace: development
+  name: sfe-ingress
 spec:
   ingressClassName: nginx
   rules:
-  - host: dev.172.17.1.10.nip.io # make sure this IP address matches your node's IP address
-    http:
+  - http:
       paths:
       - path: /
         pathType: ImplementationSpecific
@@ -232,56 +243,150 @@ spec:
 <p>
 
 ```bash
-kubectl create -f devingress.yaml
+kubectl create -f ingress.yaml
 ```
 
 </p>
 </details>
 <br/>
 
-16. Point your web browser at *dev*.**your-ip***.nip.io*:**ingress-nodePort**, for example in this instance it's `dev.172.17.1.10.nip.io:31886` 
-
-17. Create another ingress for the production namespace. It will be very similar to the devingress.yaml, but you need to make sure you change all the bits that need to change.
+16. Test the routing by cURL-ing the ingress controller's IP. You should see the response from the frontend returned, showing `v1` of the backend.
 
 <details><summary>show command</summary>
 <p>
 
-prodingress.yaml:
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: prod-ingress    #change this from dev
-  namespace: production #change this from dev
-spec:
-  ingressClassName: nginx
-  rules:
-  - host: prod.172.17.1.10.nip.io #change this from dev
-    http:
-      paths:
-      - path: /
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: frontend
-            port:
-              number: 80
+```bash
+kubectl curl \<ingress-ip\>
 ```
 
 </p>
 </details>
 <br/>
 
-18. Apply and test the prodingress.yaml file, similar to steps 15 and 16 above (just replace "prod" with "dev" in those commands).
+17. Now we will switch the traffic from the blue environment (`v1`) to the green environment (`v2`). Update the ExternalName service so that it now targets the green namespace.
 
-<details><summary>Stretch goal - optional exercise</summary>
+<details><summary>show command</summary>
 <p>
 
-19. **Optional stretch goal** create the backend deployment and service, the frontend deployment and service and an ingress in the `test` namespace as well. You might want to change the backend deployment's image versions to dev:v3, test:v2 and prod:v1 (because there's a reason we created three of them!)
+```bash
+kubectl patch svc frontend -p='{"spec": {"externalName": "frontend.green.svc.cluster.local"}}'
+```
 
 </p>
 </details>
 <br/>
 
-20. That's it, you're done! Let your instructor know that you've finished the lab.
+18. cURL the ingress controller IP again. You should now see that the traffic has switched to the green namespace and the response includes `v2` from the backend.
+
+## 4.4 Perform a Canary Rollout
+
+19. Now we will perform a canary rollout within the green namespace. Edit the existing `backend` deployment to add another label, `track=stable`.
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+kubectl -n green label deploy lab4backend track=stable
+```
+
+</p>
+</details>
+<br/>
+
+20. Create a new deployment in the green namespace, which uses `v3` of the backend, and label it appropriately.
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+kubectl -n green create deploy lab4backend-canary --image=public.ecr.aws/qa-wfl/qa-wfl/qakf/sbe:v3 --replicas=1
+kubectl -n green label deploy lab4backend-canary app=lab4backend track=canary
+```
+
+</p>
+</details>
+<br/>
+
+21. cURL the ingress controller again. You will see either `v2` or `v3` of the application. Repeat the cURL command multiple times to see the response vary. Based on the relative deployment sizes (3-to-1), you should see `v3` about one in every four responses.
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+kubectl curl \<ingress-ip\>
+```
+
+</p>
+</details>
+<br/>
+
+22. Now scale the canary deployment **up** by one replica, and the original deployment **down** by one replica.
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+kubectl -n green scale deploy lab4backend-canary --replicas=2
+kubectl -n green scale deploy lab4backend --replicas=2
+```
+
+</p>
+</details>
+<br/>
+
+23. cURL the ingress IP several more times. You should now see a roughly 50/50 split of `v2` and `v3` responses.
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+kubectl curl \<ingress-ip\>
+```
+
+</p>
+</details>
+<br/>
+
+24. Scale the deployments again, so that the canary has three replicas, and the original only one.
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+kubectl -n green scale deploy lab4backend-canary --replicas=3
+kubectl -n green scale deploy lab4backend --replicas=1
+```
+
+</p>
+</details>
+<br/>
+
+25. cURL the ingress again to see the distribution of responses - it should now be `v3` roughly 3 responses out of every four.
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+kubectl curl \<ingress-ip\>
+```
+
+</p>
+</details>
+<br/>
+
+26. Finally, scale the original deployment all the way down to zero replicas, leaving only the `v3` deployment.
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+kubectl -n green scale deploy lab4backend --replicas=0
+```
+
+</p>
+</details>
+<br/>
+
+27. cURL-ing the ingress IP should now return only `v3` responses.
+
+28. That's it, you're done! Let your instructor know that you've finished the lab.

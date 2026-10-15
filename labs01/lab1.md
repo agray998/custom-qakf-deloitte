@@ -40,7 +40,9 @@ kubectl get pod simple --output=custom-columns=IP:.status.podIP --no-headers
 </p>
 </details>
 
-<br/>Example output:
+<br/>
+
+Example output:
 ```
 NAME     READY   STATUS    RESTARTS   AGE     IP         ...
 simple   1/1     Running   0          3m59s   10.42.0.10 ...
@@ -56,7 +58,7 @@ simple   1/1     Running   0          3m59s   10.42.0.10 ...
 <p>
 
 ```bash
-curl 10.42.0.10:8080
+kubectl curl 10.42.0.10:8080
 ```
 
 </p>
@@ -441,13 +443,13 @@ hello   NodePort   10.43.123.74   <none>        8080:31907/TCP   31s
 
 <br/>
 
-23. And test it by **cURL**ing the high-numbered NodePort at localhost:
+23. And test it by **cURL**ing the high-numbered NodePort at qakf-kind-control-plane:
 
 <details><summary>show command</summary>
 <p>
 
 ```bash
-curl localhost:31907
+kubectl curl qakf-kind-control-plane:31907 # replace with YOUR NodePort number
 ```
 
 </p>
@@ -462,20 +464,7 @@ I am the backend service. I'm version 2.
 
 <br/>
 
-24. Find out your kubernetes host's IP address and point your web browser at the NodePort's port number at that address:
-
-<details><summary>show command</summary>
-<p>
-
-```bash
-hostname -i
-```
-
-</p>
-</details>
-<br/>
-
-25. Finally, delete the service and the deployment:
+24. Finally, delete the service and the deployment:
 
 <details><summary>show command</summary>
 <p>
@@ -489,4 +478,4 @@ kubectl delete deploy hello
 </details>
 <br/>
 
-26. That's it, you're done! Let your instructor know that you've finished the lab.
+25. That's it, you're done! Let your instructor know that you've finished the lab.

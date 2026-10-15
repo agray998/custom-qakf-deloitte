@@ -44,7 +44,7 @@ test  1/1    Running  0          22m     192.168.230.21   k8s-worker-1
 3. Try to put some data into the store. It will fail.
 
 ```bash
- curl 192.168.230.21:8080/save -d 'name=Nefertiti'
+kubectl curl 192.168.230.21:8080/save -d 'name=Nefertiti'
 ```
 
 Example output:
@@ -121,7 +121,7 @@ test  1/1    Running  0          22m     192.168.230.22   k8s-worker-1
 7. Retry adding data to the store. Make sure you're curling your pod's IP address.
 
 ```bash
- curl 192.168.230.22:8080/save -d 'name=Nefertiti'
+kubectl curl 192.168.230.22:8080/save -d 'name=Nefertiti'
 ```
 
 Example output:
@@ -135,7 +135,7 @@ Saved value Nefertiti to /data/name
 8. Feel free to add more key/value pairs and then try reading the data.
 
 ```bash
- curl 192.168.230.22:8080/read/name
+kubectl curl 192.168.230.22:8080/read/name
 ```
 
 Example output:
@@ -192,7 +192,7 @@ kubectl apply -f lab3web.yaml && kubectl expose deployment lab3web --port=80
 
 ```bash
 kubectl get service lab3web
-curl ip-from-previous-command
+kubectl curl ip-from-previous-command
 ```
 
 </p>
@@ -310,7 +310,7 @@ kubectl create -f lab3webconfigmap.yaml # whatever your edited file is called
 <p>
 
 ```bash
- curl 10.101.251.165
+kubectl curl 10.101.251.165
 ```
 
 </p>
@@ -329,14 +329,14 @@ Example output:
 
 The simple frontend application also has a placeholder for a `COLOUR` environment variable. We're going to add different values for that in our different namespaces. 
 
-20. Create a ConfigMap in both the development and production namespaces. Name the configmap `settings` and create a `colour` setting from a literal value with different values in each namespace. Purple and green are good choices, but feel free to use other values.
+20. Create a ConfigMap in both the green and blue namespaces. Name the configmap `settings` and create a `colour` setting from a literal value with different values in each namespace. Blue and green are obvious logical choices, but feel free to use other values.
 
 <details><summary>show command</summary>
 <p>
 
 ```bash
-kubectl create configmap settings --from-literal=colour=purple --namespace development
-kubectl create configmap settings --from-literal=colour=green --namespace production
+kubectl create configmap settings --from-literal=colour=green --namespace green
+kubectl create configmap settings --from-literal=colour=blue --namespace blue
 ```
 
 </p>
@@ -386,14 +386,14 @@ spec:
 </details>
 <br/>
 
-22. Create a sfe deployment in both the production and development namespaces. You did this in the second lab.
+22. Create a sfe deployment in both the blue and green namespaces. You did this in the second lab.
 
 <details><summary>show commands</summary>
 <p>
 
 ```bash
-kubectl apply -f lab3frontend.yaml --namespace development
-kubectl apply -f lab3frontend.yaml -n production
+kubectl apply -f lab3frontend.yaml --namespace green
+kubectl apply -f lab3frontend.yaml -n blue
 ```
 
 </p>
@@ -406,21 +406,22 @@ kubectl apply -f lab3frontend.yaml -n production
 <p>
 
 ```bash
-kubectl expose deployment lab3frontend --port 8080 --type NodePort --namespace production 
-kubectl expose deployment lab3frontend --port 8080 --type NodePort -n development
+kubectl expose deployment lab3frontend --port 8080 --type NodePort --namespace blue
+kubectl expose deployment lab3frontend --port 8080 --type NodePort -n green
 ```
 
 </p>
 </details>
 <br/>
 
-24. Obtain the nodeport of both services and then browse to them.
+24. Obtain the nodeport of both services and then cURL them.
 
 <details><summary>show command</summary>
 <p>
 
 ```bash
-kubectl get service lab3frontend --all-namespaces
+kubectl get service lab3frontend -n green && kubectl get service lab3frontend -n blue
+kubectl curl qakf-kind-control-plane:\<NodePort\>
 ```
 
 </p>
@@ -440,14 +441,14 @@ kubectl get service lab3frontend --all-namespaces
 
 ### Task 4 - work with secrets
 
-26. Create a `secret` called `secrets` from a literal value with a key of `password` in the dev and prod namespaces, with different values for each password.
+26. Create a `secret` called `secrets` from a literal value with a key of `password` in the blue and green namespaces, with different values for each password.
 
 <details><summary>show command</summary>
 <p>
 
 ```bash
-kubectl create secret generic secrets --from-literal password=MySecretPhrase --namespace development
-kubectl create secret generic secrets --from-literal password=ReallySecret --namespace production
+kubectl create secret generic secrets --from-literal password=MySecretPhrase --namespace green
+kubectl create secret generic secrets --from-literal password=ReallySecret --namespace blue
 ```
 
 </p>
@@ -512,13 +513,14 @@ spec:
 </details>
 <br/>
 
-28. Obtain the nodeport of both services and then browse to them.
+28. Obtain the nodeport of both services and then cURL them.
 
 <details><summary>show command</summary>
 <p>
 
 ```bash
-kubectl get service --all-namespaces
+kubectl get service -n green && kubectl get service -n blue
+kubectl curl qakf-kind-control-plane:\<NodePort\>
 ```
 
 </p>
@@ -540,10 +542,10 @@ kubectl get service --all-namespaces
 <p>
 
 ```bash
-kubectl delete deploy lab3frontend -n production
-kubectl delete deploy lab3frontend -n development
-kubectl delete service lab3frontend -n production
-kubectl delete service lab3frontend -n development
+kubectl delete deploy lab3frontend -n blue
+kubectl delete deploy lab3frontend -n green
+kubectl delete service lab3frontend -n blue
+kubectl delete service lab3frontend -n green
 kubectl delete deploy lab3web
 kubectl delete service lab3web
 ```
