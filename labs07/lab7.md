@@ -143,7 +143,7 @@ helm uninstall release-2 -n green
 
 ## 7.2 Kustomize
 
-12. Now, for comparison, we will use Kustomize to deploy the same set of resources. A starter configuration has been made available in `$HOME/qakf-kustomize`. Review these files. In particular, compare the base version of `fe-deploy.yaml` with the two overlays. Note that the overlays only define the minimal information required to patch the attributes they wish to modify - in this case, specifying `v1` of the frontend image. All the rest of the config is unchanged from the base, and therefore does not need to be repeated.
+12. Now, for comparison, we will use Kustomize to deploy the same set of resources. A starter configuration has been made available in `$HOME/qakf-kustomize`. Review these files. In particular, compare the base version of `be-deploy.yaml` with the two overlays. Note that the overlays only define the minimal information required to patch the attributes they wish to modify - in this case, specifying 3 replicas instead of the default of 1. All the rest of the config is unchanged from the base, and therefore does not need to be repeated. Also note the use of _transformers_ and _generators_ in the overlays' `kustomization.yaml` files - these allow for management of image tags and data objects without needing to reduplicate the object yaml. 
 
 13. Apply the `blue` overlay to deploy `v1` of the application into the `blue` namespace
 
@@ -151,6 +151,8 @@ helm uninstall release-2 -n green
 <p>
 
 ```bash
+# need to create a password file to hold the password for the secret
+echo "bluePassword" >> $HOME/qakf-kustomize/overlays/blue/password
 # kubectl apply -k is used to pass configs through kustomize before applying
 kubectl apply -k $HOME/qakf-kustomize/overlays/blue
 ```
@@ -179,6 +181,7 @@ kubectl curl \<ip from above output\>
 <p>
 
 ```bash
+echo "greenPassword" >> $HOME/qakf-kustomize/overlays/green/password
 kubectl apply -k $HOME/qakf-kustomize/overlays/green
 ```
 
