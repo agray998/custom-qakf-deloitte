@@ -1,0 +1,17 @@
+#!/bin/bash
+#reset
+kubectl delete namespace blue green
+#lab2 changes
+kubectl create namespace blue
+kubectl create namespace green
+#create ingress
+helm install ingress-nginx ingress-nginx \
+  --repo https://kubernetes.github.io/ingress-nginx \
+  --set controller.service.type=NodePort \
+  --namespace ingress-nginx --create-namespace
+sleep 30
+kubectl create service externalname frontend --external-name frontend.green.svc.cluster.local
+kubectl create -f ../solutions/04_03_ingress.yaml
+#grab helm chart and kustomize configs
+git clone https://github.com/agray998/qakf-helm.git ../../qakf-helm
+git clone https://github.com/agray998/qakf-kustomize.git ../../qakf-kustomize
