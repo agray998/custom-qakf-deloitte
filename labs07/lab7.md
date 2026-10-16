@@ -218,4 +218,161 @@ kubectl delete -k $HOME/qakf-kustomize/overlays/green
 <br/>
 
 ## 7.3 ArgoCD
-<!-- TODO: Fill me in -->
+
+18. Now we will use ArgoCD to automate the redeployment of the application. Begin by installing the ArgoCD control plane into your cluster
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+# Download and install the ArgoCD CLI
+wget https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+rm argocd-linux-amd64
+# Deploy ArgoCD control plane
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+```
+
+</p>
+</details>
+<br/>
+
+19. Wait a minute or so for the server to fully initialise, then retrieve the initial admin password for the ArgoCD installation
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+argocd admin initial-password -n argocd 
+```
+
+</p>
+</details>
+<br/>
+
+20. Expose the ArgoCD server via your lab VM using `kubectl port-forward`
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+kubectl -n argocd port-forward service/argocd-server 8000:80 & # the & is important, to fork the proxy process into the background
+\<press ENTER to regain terminal input\>
+```
+
+</p>
+</details>
+<br/>
+
+21. Obtain the external IP of your VM
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+curl ifconfig.io
+```
+
+</p>
+</details>
+<br/>
+
+22. In a new browser tab, navigate to `https://<IP from previous step>:8000` to access the ArgoCD server. You may need to dismiss a security warning due to Argo using a self-signed SSL certificate
+
+23. Log into ArgoCD with the username `admin` and the password you retrieved in step 19
+
+24. From the ArgoCD dashboard, create a new application named simple-app
+
+25. On the App's settings, enable auto-sync and self-heal
+
+26. For the App's source, choose git and provide the URL `https://github.com/agray998/qakf-helm` - this is the source for the helm chart we worked with in part 7.1
+
+27. For the destination, choose `in-cluster` and the `blue` namespace
+
+28. For the values file, select `values.yaml`
+
+29. Create the application. After a minute or so ArgoCD should autosync the configuration and deploy the resources
+
+<details><summary>Optional Stretch Tasks</summary>
+<p>
+
+30. Create another new app in ArgoCD, named `simple-app-2`. This time set the source to point at `https://github.com/agray998/qakf-kustomize`
+
+31. Observe that ArgoCD is also able to work with Kustomize configurations as well as Helm charts. Configure the settings on the new app to deploy the `green` overlay
+
+32. Install Kro into your cluster
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+export KRO_VERSION=$(curl -sL \
+    https://api.github.com/repos/kro-run/kro/releases/latest | \
+    jq -r '.tag_name | ltrimstr("v")'
+)
+
+helm install kro oci://registry.k8s.io/kro/charts/kro \
+  --namespace kro-system \
+  --create-namespace \
+  --version=${KRO_VERSION}
+```
+
+</p>
+</details>
+<br/>
+
+33. Review the provided _Resource Graph Definition_ for the simple app
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+cat $HOME/qakf-labs/labs07/rgd.yaml
+```
+
+</p>
+</details>
+<br/>
+
+34. Create the RGD
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+kubectl apply -f $HOME/qakf-labs/labs07/rgd.yaml
+```
+
+</p>
+</details>
+<br/>
+
+35. In a new browser tab, log into GitHub and fork your own copy of `https://github.com/agray998/qakf-kustomize-kro`
+
+36. Fill in `simple-app.yaml` in each of the overlays based on the relevant configurations from earlier
+
+37. In ArgoCD, create a third app, called simple-app-kro. Enable auto-sync, self heal AND auto-create namespace
+
+38. Set the source to YOUR fork of the GitHub repo, the destination namespace to simple-app-kro, and choose either overlay to deploy
+
+39. Once the new app has synced, test it by cURL-ing the frontend service in the simple-app-kro namespace
+
+<details><summary>show command</summary>
+<p>
+
+```bash
+kubectl -n simple-app-kro get svc frontend
+kubectl curl \<IP from above\>
+```
+
+</p>
+</details>
+<br/>
+
+</p>
+</details>
+<br/>
+
+40. Congratulations - you're done with the lab. Let your instructor know that you've finished 

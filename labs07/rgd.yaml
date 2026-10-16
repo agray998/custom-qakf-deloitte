@@ -1,0 +1,141 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: simple-app-stack
+spec:
+  # kro uses this simple schema to create your CRD schema and apply it
+  # The schema defines what users can provide when they instantiate the RGD (create an instance).
+  schema:
+    apiVersion: v1alpha1
+    kind: SimpleApplication
+    spec:
+      # Spec fields that users can provide.
+      name: string
+      frontEndImageVersion: string | default="latest"
+      backEndImageVersion: string | default="latest"
+      colour: string | default="red"
+      password: string | default=${random.seededString(24, schema.metadata.uid)}
+      backendPort: integer | default=8080
+      frontendPort: integer | default=8080
+    status:
+      # Fields the controller will inject into instances status.
+      deploymentConditions: ${deployment.status.conditions}
+      availableReplicas: ${deployment.status.availableReplicas}
+
+  # Define the resources this API will manage.
+  resources:
+    - id: cm
+      template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: settings
+        data:
+          colour: ${schema.spec.colour} # Use the colour provided by user
+
+    - id: secret
+      template:
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: secrets
+        type: Generic
+        stringData:
+          password: ${schema.spec.password} # Use the password provided by user
+
+    - id: fe-deployment
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${schema.spec.name}-fe # Use the name provided by user
+        spec:
+          replicas: 3
+          selector:
+            matchLabels:
+              app: ${schema.spec.name}-fe
+          template:
+            metadata:
+              labels:
+                app: ${schema.spec.name}-fe
+            spec:
+              containers:
+                - name: ${schema.spec.name}-fe
+                  image: ${schema.spec.frontEndImageVersion} # Use the frontend image version provided by user
+                  env:
+                  - name: COLOUR
+                    valueFrom:
+                      configMapKeyRef:
+                        name: settings
+                        key: colour        
+                  - name: NAMESPACE
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.namespace
+                  - name: NODE_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: spec.nodeName
+                  - name: POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
+                  volumeMounts:
+                  - name: secret-volume
+                    mountPath: /data
+                  ports:
+                  - containerPort: ${schema.spec.frontendPort}
+              volumes:
+              - name: secret-volume
+                secret:
+                  secretName: secrets
+    
+    - id: be-deployment
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ${schema.spec.name}-be # Use the name provided by user
+        spec:
+          replicas: 3
+          selector:
+            matchLabels:
+              app: ${schema.spec.name}-be
+          template:
+            metadata:
+              labels:
+                app: ${schema.spec.name}-be
+            spec:
+              containers:
+                - name: ${schema.spec.name}-be
+                  image: ${schema.spec.backEndImageVersion} # Use the backend image version provided by user
+                  ports:
+                    - containerPort: ${schema.spec.backendPort}
+
+    - id: fe-service
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: frontend
+        spec:
+          selector: ${fe-deployment.spec.selector.matchLabels} # Use the deployment selector
+          ports:
+            - protocol: TCP
+              port: 80
+              targetPort: ${schema.spec.frontendPort}
+    
+    - id: be-service
+      template:
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: backend
+        spec:
+          selector: ${be-deployment.spec.selector.matchLabels} # Use the deployment selector
+          ports:
+            - protocol: TCP
+              port: 80
+              targetPort: ${schema.spec.backendPort}
+
+    
